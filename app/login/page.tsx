@@ -12,7 +12,7 @@ export default function LoginPage() {
       <SignIn 
         routing="hash"
         signUpUrl="/signup"
-        afterSignInUrl="/select-role"
+        fallbackRedirectUrl="/select-role"
       />
     </div>
   );

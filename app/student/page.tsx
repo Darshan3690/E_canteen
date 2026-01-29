@@ -1,28 +1,27 @@
 import { redirect } from "next/navigation";
-import { getUserRole } from "@/lib/auth";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 export default async function StudentPage() {
-  const role = await getUserRole();
+  const { userId } = await auth();
 
-  // Not logged in
-  if (role === null) {
-    redirect("/");
+  // Not logged in - redirect to login
+  if (!userId) {
+    redirect("/login");
   }
 
-  // Has role but not student - redirect to home
-  if (role && role !== "student") {
-    redirect("/");
-  }
+  // Get user role from Clerk
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  const role = user.publicMetadata.role as string | undefined;
 
-  // No role assigned - show message instead of redirect loop
+  // No role assigned - redirect to select role
   if (!role) {
-    return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
-        <h1>Access Denied</h1>
-        <p>Your role has not been assigned yet.</p>
-        <a href="/">Go back to home</a>
-      </div>
-    );
+    redirect("/select-role");
+  }
+
+  // Has role but not student - redirect to their dashboard
+  if (role === "manager") {
+    redirect("/manager");
   }
 
   return (
