@@ -12,7 +12,7 @@ export default function SignupPage() {
       <SignUp 
         routing="hash"
         signInUrl="/login"
-        afterSignUpUrl="/select-role"
+        fallbackRedirectUrl="/select-role"
       />
     </div>
   );

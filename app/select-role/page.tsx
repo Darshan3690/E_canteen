@@ -1,18 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 
 export default function SelectRolePage() {
   const [role, setRole] = useState<"student" | "canteen_manager">("student");
-  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
 
-  // Check if user is logged in using Clerk
+  // Check if user already has a role and redirect
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      const existingRole = user.publicMetadata?.role as string | undefined;
+      if (existingRole === "student") {
+        router.push("/menu");
+      } else if (existingRole === "manager") {
+        router.push("/manager");
+      }
+    }
+  }, [isLoaded, isSignedIn, user, router]);
+
+  // Clerk loading state
   if (!isLoaded) {
     return (
       <div style={{ padding: 24, maxWidth: 400, margin: "0 auto", textAlign: "center" }}>
@@ -21,6 +33,7 @@ export default function SelectRolePage() {
     );
   }
 
+  // Not signed in
   if (!isSignedIn) {
     router.push("/login");
     return null;
@@ -34,7 +47,7 @@ export default function SelectRolePage() {
       const res = await fetch("/api/set-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, code }),
+        body: JSON.stringify({ role }),
       });
 
       if (!res.ok) {
@@ -44,14 +57,10 @@ export default function SelectRolePage() {
         return;
       }
 
-      // Role set successfully, redirect based on role
-      if (role === "student") {
-        router.push("/menu");
-      } else {
-        router.push("/manager");
-      }
+      // Redirect based on role
+      router.push(role === "student" ? "/menu" : "/manager");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }
@@ -68,7 +77,6 @@ export default function SelectRolePage() {
         <label
           style={{
             display: "flex",
-            alignItems: "center",
             gap: 12,
             padding: 16,
             border: role === "student" ? "2px solid #2196F3" : "1px solid #333",
@@ -80,7 +88,6 @@ export default function SelectRolePage() {
         >
           <input
             type="radio"
-            value="student"
             checked={role === "student"}
             onChange={() => setRole("student")}
           />
@@ -95,7 +102,6 @@ export default function SelectRolePage() {
         <label
           style={{
             display: "flex",
-            alignItems: "center",
             gap: 12,
             padding: 16,
             border: role === "canteen_manager" ? "2px solid #4CAF50" : "1px solid #333",
@@ -106,7 +112,6 @@ export default function SelectRolePage() {
         >
           <input
             type="radio"
-            value="canteen_manager"
             checked={role === "canteen_manager"}
             onChange={() => setRole("canteen_manager")}
           />
@@ -119,38 +124,11 @@ export default function SelectRolePage() {
         </label>
       </div>
 
-      {role === "canteen_manager" && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 8, color: "#f90" }}>
-            🔐 Manager Verification Code
-          </label>
-          <input
-            type="password"
-            placeholder="Enter manager code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            style={{
-              width: "100%",
-              padding: 12,
-              borderRadius: 8,
-              border: "1px solid #333",
-              background: "#111",
-              color: "#fff",
-            }}
-          />
-          <p style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
-            Contact admin if you don't have the code
-          </p>
-        </div>
-      )}
-
-      {error && (
-        <p style={{ color: "#f44", marginBottom: 16 }}>{error}</p>
-      )}
+      {error && <p style={{ color: "#f44", marginBottom: 16 }}>{error}</p>}
 
       <button
         onClick={submitRole}
-        disabled={loading || (role === "canteen_manager" && !code)}
+        disabled={loading}
         style={{
           width: "100%",
           padding: 14,

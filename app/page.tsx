@@ -26,10 +26,10 @@ export default async function HomePage() {
   }
 
   // Redirect based on role
-  if (role === "canteen_manager") {
+  if (role === "manager") {
     redirect("/manager");
   }
 
   // Default: student
-  redirect("/student");
+  redirect("/menu");
 }
