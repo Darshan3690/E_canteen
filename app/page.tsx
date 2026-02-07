@@ -1,18 +1,13 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import LandingPage from "./LandingPage";
 
 export default async function HomePage() {
   const { userId } = await auth();
 
   // Not logged in → show landing page
   if (!userId) {
-    return (
-      <main style={{ padding: 24, textAlign: 'center' }}>
-        <h1>Welcome to E-Canteen</h1>
-        <p>College Canteen Management System</p>
-        <p style={{ marginTop: 16, color: '#888' }}>Please sign in to continue</p>
-      </main>
-    );
+    return <LandingPage />;
   }
 
   // Logged in → get role
@@ -31,5 +26,5 @@ export default async function HomePage() {
   }
 
   // Default: student
-  redirect("/menu");
+  redirect("/student");
 }

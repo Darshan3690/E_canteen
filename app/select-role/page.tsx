@@ -11,18 +11,39 @@ export default function SelectRolePage() {
 
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
+  const [profileEnsured, setProfileEnsured] = useState(false);
 
   // Check if user already has a role and redirect
   useEffect(() => {
-    if (isLoaded && isSignedIn && user) {
+    const ensureProfile = async () => {
+      if (!isLoaded || !isSignedIn || !user || profileEnsured) return;
+
+      // Create/update Profile record in Supabase via Prisma
+      try {
+        await fetch("/api/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: user.id,
+            name: user.fullName ?? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+            email: user.emailAddresses?.[0]?.emailAddress ?? "",
+          }),
+        });
+        setProfileEnsured(true);
+      } catch (e) {
+        // Non-blocking; role selection can proceed even if this fails
+        console.warn("Failed to ensure profile:", e);
+      }
+
       const existingRole = user.publicMetadata?.role as string | undefined;
       if (existingRole === "student") {
         router.push("/menu");
       } else if (existingRole === "manager") {
         router.push("/manager");
       }
-    }
-  }, [isLoaded, isSignedIn, user, router]);
+    };
+    ensureProfile();
+  }, [isLoaded, isSignedIn, user, router, profileEnsured]);
 
   // Clerk loading state
   if (!isLoaded) {

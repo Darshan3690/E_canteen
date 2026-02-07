@@ -1,5 +1,6 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
     const { role } = await req.json();
 
     // Validate role
-    if (!["student", "canteen_manager"].includes(role)) {
+    if (!["student", "canteen_manager", "manager"].includes(role)) {
       return NextResponse.json(
         { error: "Invalid role" },
         { status: 400 }
@@ -23,12 +24,26 @@ export async function POST(req: Request) {
     }
 
     // Map role to simple value
-    const dbRole = role === "canteen_manager" ? "manager" : "student";
+    const dbRole = role === "canteen_manager" ? "manager" : role === "manager" ? "manager" : "student";
 
     // Store role in Clerk's public metadata (no database needed)
     const client = await clerkClient();
+    const user = await client.users.getUser(userId);
     await client.users.updateUser(userId, {
       publicMetadata: { role: dbRole },
+    });
+
+    // Persist role and basic user data in Prisma (Supabase Postgres)
+    // Upsert ensures record exists even if signup step was skipped
+    await prisma.profile.upsert({
+      where: { id: userId },
+      update: { role: dbRole as any },
+      create: {
+        id: userId,
+        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.lastName || user.username || "",
+        email: user.emailAddresses?.[0]?.emailAddress || "",
+        role: dbRole as any,
+      },
     });
 
     return NextResponse.json({ success: true, role: dbRole });

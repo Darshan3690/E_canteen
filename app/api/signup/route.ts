@@ -16,10 +16,12 @@ export async function POST(req: Request) {
     }
 
 
-    const profile = await prisma.profile.create({
-      data: {
+    const profile = await prisma.profile.upsert({
+      where: { id },
+      update: { name, email },
+      create: {
         id,
-        name,
+        name: name ?? '',
         email,
         // Role will be set later in select-role page
       },
@@ -28,8 +30,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json(profile)
   } catch (error) {
+    console.error('Signup error:', error)
     return NextResponse.json(
-      { error: 'User already exists or DB error' },
+      { error: 'Failed to create or update user profile' },
       { status: 500 }
     )
   }
