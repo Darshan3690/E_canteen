@@ -1,29 +1,38 @@
-import { redirect } from "next/navigation";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import StudentDashboard from "./StudentDashboard";
+import { prisma } from "@/lib/prisma";
+import HeroBanner from "./components/HeroBanner";
+import CategoryScroll from "./components/CategoryScroll";
+import FilterChips from "./components/FilterChips";
+import ExploreSection from "./components/ExploreSection";
+import RestaurantCard from "./components/RestaurantCard";
+import BottomNav from "./components/BottomNav";
 
 export default async function StudentPage() {
-  const { userId } = await auth();
+  const restaurants = await prisma.restaurant.findMany();
 
-  // Not logged in - redirect to login
-  if (!userId) {
-    redirect("/login");
-  }
+  return (
+    <div className="bg-[#0f1116] min-h-screen text-white pb-20">
 
-  // Get user role from Clerk
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const role = user.publicMetadata.role as string | undefined;
+      <HeroBanner />
+      <CategoryScroll />
+      <FilterChips />
+      <ExploreSection />
 
-  // No role assigned - redirect to select role
-  if (!role) {
-    redirect("/select-role");
-  }
+      <div className="px-5 mt-6">
+        <h2 className="text-gray-400 text-sm tracking-widest mb-4">
+          ALL RESTAURANTS
+        </h2>
 
-  // Has role but not student - redirect to their dashboard
-  if (role === "manager") {
-    redirect("/manager");
-  }
+        <div className="space-y-6">
+          {restaurants.map((restaurant) => (
+            <RestaurantCard
+              key={restaurant.id}
+              restaurant={restaurant}
+            />
+          ))}
+        </div>
+      </div>
 
-  return <StudentDashboard />;
+      <BottomNav />
+    </div>
+  );
 }
