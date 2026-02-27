@@ -37,7 +37,7 @@ export default function SelectRolePage() {
 
       const existingRole = user.publicMetadata?.role as string | undefined;
       if (existingRole === "student") {
-        router.push("/menu");
+        router.push("/canteens");
       } else if (existingRole === "manager") {
         router.push("/manager");
       }
@@ -79,7 +79,7 @@ export default function SelectRolePage() {
       }
 
       // Redirect based on role
-      router.push(role === "student" ? "/menu" : "/manager");
+      router.push(role === "student" ? "/canteens" : "/manager/onboarding");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");

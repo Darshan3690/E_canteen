@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import ManagerHeader from "./components/ManagerHeader";
 import { StatsOverview } from "./components/StatsOverview";
 import LiveOrders, { Order, OrderStatus } from "./components/LiveOrders";
@@ -9,7 +9,7 @@ import Inventory from "./components/Inventory";
 import OrderHistory from "./components/OrderHistory";
 import FeedbackSection from "./components/FeedbackSection";
 
-// Sample data - in production, this would come from your API/database
+// Sample data for menu items (in production, fetch from API)
 const initialMenuItems: MenuItem[] = [
   { id: "1", name: "Veg Sandwich", description: "Fresh vegetables with cheese and mint chutney", price: 40, category: "Snacks", available: true },
   { id: "2", name: "Cold Coffee", description: "Chilled coffee with ice cream", price: 30, category: "Beverages", available: true },
@@ -22,67 +22,16 @@ const initialMenuItems: MenuItem[] = [
   { id: "9", name: "Fresh Lime Soda", description: "Refreshing lime drink with soda", price: 25, category: "Beverages", available: true },
 ];
 
-const initialOrders: Order[] = [
-  {
-    id: "ord-1",
-    tokenNumber: "A101",
-    items: [{ name: "Veg Sandwich", quantity: 2 }, { name: "Cold Coffee", quantity: 1 }],
-    totalAmount: 110,
-    status: "pending",
-    orderTime: new Date(Date.now() - 5 * 60000),
-  },
-  {
-    id: "ord-2",
-    tokenNumber: "A102",
-    items: [{ name: "Masala Dosa", quantity: 1 }, { name: "Masala Chai", quantity: 2 }],
-    totalAmount: 80,
-    status: "preparing",
-    orderTime: new Date(Date.now() - 12 * 60000),
-  },
-  {
-    id: "ord-3",
-    tokenNumber: "A103",
-    items: [{ name: "Samosa", quantity: 4 }],
-    totalAmount: 60,
-    status: "ready",
-    orderTime: new Date(Date.now() - 20 * 60000),
-  },
-  {
-    id: "ord-4",
-    tokenNumber: "A104",
-    items: [{ name: "Paneer Roll", quantity: 1 }, { name: "Fresh Lime Soda", quantity: 1 }],
-    totalAmount: 85,
-    status: "pending",
-    orderTime: new Date(Date.now() - 2 * 60000),
-  },
-];
+const initialOrders: Order[] = []; // Loaded from API on mount
 
-const completedOrders = [
-  {
-    id: "comp-1",
-    tokenNumber: "A098",
-    items: [{ name: "Masala Dosa", quantity: 1 }, { name: "Cold Coffee", quantity: 2 }],
-    totalAmount: 110,
-    completedAt: new Date(Date.now() - 45 * 60000),
-    status: "collected" as OrderStatus,
-  },
-  {
-    id: "comp-2",
-    tokenNumber: "A097",
-    items: [{ name: "Veg Biryani", quantity: 2 }],
-    totalAmount: 160,
-    completedAt: new Date(Date.now() - 60 * 60000),
-    status: "collected" as OrderStatus,
-  },
-  {
-    id: "comp-3",
-    tokenNumber: "A096",
-    items: [{ name: "Samosa", quantity: 6 }, { name: "Masala Chai", quantity: 3 }],
-    totalAmount: 135,
-    completedAt: new Date(Date.now() - 90 * 60000),
-    status: "collected" as OrderStatus,
-  },
-];
+const completedOrders: {
+  id: string;
+  tokenNumber: string;
+  items: { name: string; quantity: number }[];
+  totalAmount: number;
+  completedAt: Date;
+  status: OrderStatus;
+}[] = []; // Loaded from API
 
 const sampleFeedback = [
   {
@@ -111,8 +60,57 @@ const sampleFeedback = [
 export default function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [menuItems, setMenuItems] = useState(initialMenuItems);
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [orderHistoryData, setOrderHistoryData] = useState(completedOrders);
+
+  // Helper: convert API order to component Order shape
+  const toComponentOrder = (o: any): Order => ({
+    id: o.id,
+    tokenNumber: o.orderNumber ?? o.id.slice(0, 8),
+    items: (o.items ?? []).map((item: any) => ({
+      name: item.menuItem?.name ?? "Item",
+      quantity: item.quantity,
+    })),
+    totalAmount: o.totalAmount,
+    status: (o.status as string).toLowerCase() as OrderStatus,
+    orderTime: new Date(),
+    studentName: o.student?.name,
+  });
+
+  // Fetch real orders from API
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch("/api/orders");
+      if (!res.ok) return;
+      const data: any[] = await res.json();
+      const active = data
+        .filter((o) => !["COLLECTED", "CANCELLED"].includes(o.status))
+        .map(toComponentOrder);
+      const completed = data
+        .filter((o) => o.status === "COLLECTED")
+        .map((o) => ({
+          id: o.id,
+          tokenNumber: o.orderNumber ?? o.id.slice(0, 8),
+          items: (o.items ?? []).map((item: any) => ({
+            name: item.menuItem?.name ?? "Item",
+            quantity: item.quantity,
+          })),
+          totalAmount: o.totalAmount,
+          completedAt: o.completedAt ? new Date(o.completedAt) : new Date(),
+          status: "collected" as OrderStatus,
+        }));
+      setOrders(active);
+      setOrderHistoryData(completed);
+    } catch {
+      // silent – keep existing state
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 30_000); // poll every 30s
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
 
   // Calculate stats
   const stats = {
@@ -123,64 +121,128 @@ export default function ManagerDashboard() {
     outOfStock: menuItems.filter((i) => !i.available).length,
   };
 
-  // Order handlers
-  const handleOrderStatusChange = useCallback((orderId: string, newStatus: OrderStatus) => {
+  // Order handlers — also call API
+  const handleOrderStatusChange = useCallback(async (orderId: string, newStatus: OrderStatus) => {
+    // Optimistic UI update
     setOrders((prev) =>
-      prev.map((order) => {
-        if (order.id === orderId) {
-          const updatedOrder = { ...order, status: newStatus };
-          
-          // If collected, move to history
-          if (newStatus === "collected") {
-            setTimeout(() => {
-              setOrders((current) => current.filter((o) => o.id !== orderId));
-              setOrderHistoryData((history) => [
-                {
-                  id: orderId,
-                  tokenNumber: order.tokenNumber,
-                  items: order.items,
-                  totalAmount: order.totalAmount,
-                  completedAt: new Date(),
-                  status: "collected",
-                },
-                ...history,
-              ]);
-            }, 500);
+      prev.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order))
+    );
+
+    // Call API
+    try {
+      await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus.toUpperCase() }),
+      });
+    } catch {
+      // Revert on error
+      fetchOrders();
+      return;
+    }
+
+    // If collected, move to history
+    if (newStatus === "collected") {
+      setTimeout(() => {
+        setOrders((current) => {
+          const order = current.find((o) => o.id === orderId);
+          if (order) {
+            setOrderHistoryData((history) => [
+              {
+                id: orderId,
+                tokenNumber: order.tokenNumber,
+                items: order.items,
+                totalAmount: order.totalAmount,
+                completedAt: new Date(),
+                status: "collected" as OrderStatus,
+              },
+              ...history,
+            ]);
           }
-          
-          return updatedOrder;
-        }
-        return order;
-      })
-    );
+          return current.filter((o) => o.id !== orderId);
+        });
+      }, 500);
+    }
+  }, [fetchOrders]);
+
+  // Fetch real menu items from API
+  const fetchMenu = useCallback(async () => {
+    try {
+      const res = await fetch("/api/manager/menu");
+      if (!res.ok) return;
+      const data: any[] = await res.json();
+      setMenuItems(
+        data.map((item) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description ?? "",
+          price: item.price,
+          category: "Menu",
+          available: item.isAvailable,
+        }))
+      );
+    } catch {
+      // keep existing state
+    }
   }, []);
 
-  // Menu handlers
-  const handleToggleAvailability = useCallback((id: string) => {
+  useEffect(() => {
+    fetchMenu();
+  }, [fetchMenu]);
+
+  // Menu handlers — call API + update UI
+  const handleToggleAvailability = useCallback(async (id: string) => {
     setMenuItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, available: !item.available } : item
-      )
+      prev.map((item) => (item.id === id ? { ...item, available: !item.available } : item))
     );
-  }, []);
+    const item = menuItems.find((m) => m.id === id);
+    if (!item) return;
+    try {
+      await fetch(`/api/manager/menu/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isAvailable: !item.available }),
+      });
+    } catch { fetchMenu(); }
+  }, [menuItems, fetchMenu]);
 
-  const handleAddItem = useCallback((item: Omit<MenuItem, "id">) => {
-    const newItem: MenuItem = {
-      ...item,
-      id: `item-${Date.now()}`,
-    };
-    setMenuItems((prev) => [...prev, newItem]);
-  }, []);
+  const handleAddItem = useCallback(async (item: Omit<MenuItem, "id">) => {
+    try {
+      const res = await fetch("/api/manager/menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: item.name,
+          description: item.description,
+          price: item.price,
+        }),
+      });
+      if (!res.ok) return;
+      const created = await res.json();
+      setMenuItems((prev) => [
+        ...prev,
+        { id: created.id, name: created.name, description: created.description ?? "", price: created.price, category: "Menu", available: created.isAvailable },
+      ]);
+    } catch { fetchMenu(); }
+  }, [fetchMenu]);
 
-  const handleEditItem = useCallback((updatedItem: MenuItem) => {
-    setMenuItems((prev) =>
-      prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
-    );
-  }, []);
+  const handleEditItem = useCallback(async (updatedItem: MenuItem) => {
+    setMenuItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+    try {
+      await fetch(`/api/manager/menu/${updatedItem.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: updatedItem.name, description: updatedItem.description, price: updatedItem.price }),
+      });
+    } catch { fetchMenu(); }
+  }, [fetchMenu]);
 
-  const handleDeleteItem = useCallback((id: string) => {
+  const handleDeleteItem = useCallback(async (id: string) => {
     setMenuItems((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+    try {
+      await fetch(`/api/manager/menu/${id}`, { method: "DELETE" });
+    } catch { fetchMenu(); }
+  }, [fetchMenu]);
 
   const renderContent = () => {
     switch (activeTab) {

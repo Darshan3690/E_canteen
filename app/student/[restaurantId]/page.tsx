@@ -8,7 +8,8 @@ interface Props {
 }
 
 export default async function RestaurantPage({ params }: Props) {
-    const { restaurantId } = await params;
+    const resolved = await params;
+    const { restaurantId } = resolved;
 
     const restaurant = await prisma.restaurant.findUnique({
         where: { id: restaurantId },

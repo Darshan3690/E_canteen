@@ -2,6 +2,30 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+async function getClerkNameAndEmail(userId: string): Promise<{ name: string; email: string }> {
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    const name =
+      user.fullName ??
+      [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ??
+      "";
+    const primary = user.emailAddresses?.find(
+      (e: { id: string; emailAddress: string }) => e.id === user.primaryEmailAddressId
+    );
+    const email = primary?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
+    return {
+      name: name || "",
+      email: email || `${userId}@local.invalid`,
+    };
+  } catch {
+    return {
+      name: "",
+      email: `${userId}@local.invalid`,
+    };
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
@@ -23,25 +47,25 @@ export async function POST(req: Request) {
       );
     }
 
-    // Map role to simple value
+    // Map role to simple value stored in our database
     const dbRole = role === "canteen_manager" ? "manager" : role === "manager" ? "manager" : "student";
 
-    // Store role in Clerk's public metadata (no database needed)
-    const client = await clerkClient();
-    const user = await client.users.getUser(userId);
-    await client.users.updateUser(userId, {
-      publicMetadata: { role: dbRole },
-    });
+    const clerkProfile = await getClerkNameAndEmail(userId);
 
     // Persist role and basic user data in Prisma (Supabase Postgres)
     // Upsert ensures record exists even if signup step was skipped
     await prisma.profile.upsert({
       where: { id: userId },
-      update: { role: dbRole as any },
+      update: {
+        role: dbRole as any,
+        // Keep Profile fields valid if they were previously empty
+        name: clerkProfile.name || undefined,
+        email: clerkProfile.email || undefined,
+      },
       create: {
         id: userId,
-        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.lastName || user.username || "",
-        email: user.emailAddresses?.[0]?.emailAddress || "",
+        name: clerkProfile.name || "",
+        email: clerkProfile.email,
         role: dbRole as any,
       },
     });

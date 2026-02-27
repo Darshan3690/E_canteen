@@ -8,13 +8,19 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-
+// User profile (students and managers)
 model Profile {
-  id     String @id @default(uuid())
-  name   String
-  email  String @unique
-  role   Role?
-  orders Order[]
+  id                  String          @id @default(uuid())
+  name                String
+  email               String          @unique
+  role                Role?
+  onboarded           Boolean         @default(false)
+  
+  // Manager-specific
+  canteenManagers     CanteenManager[]
+  
+  // Student-specific
+  orders              Order[]
 }
 
 enum Role {
@@ -22,49 +28,142 @@ enum Role {
   manager
 }
 
-model Restaurant {
-  id           String     @id @default(uuid())
-  name         String
-  image        String
-  rating       Float      @default(4.0)
-  deliveryTime String
-  isVeg        Boolean    @default(false)
-  menuItems    MenuItem[]
+// Multi-tenant: Each manager can manage ONE canteen
+model Canteen {
+  id                  String          @id @default(uuid())
+  name                String          @unique
+  description         String?
+  location            String          // Block/Building/Campus area
+  contactNumber       String
+  contactEmail        String?
+  
+  // Branding
+  logoUrl             String?
+  coverImageUrl       String?
+  
+  // Operating hours
+  openingTime         String          // Format: HH:mm
+  closingTime         String          // Format: HH:mm
+  workingDays         String          // JSON array: ["MON", "TUE", ...]
+  
+  // Token configuration
+  tokenPrefix         String          @unique // e.g., "CAN", "CTN"
+  startingTokenNumber Int             @default(100) // Next token: 100
+  currentTokenNumber  Int             @default(100) // Current token counter
+  
+  // Status
+  isActive            Boolean         @default(false)
+  isOpenNow           Boolean         @default(false)
+  
+  // Menu
+  menuItems           MenuItem[]
+  orders              Order[]
+  
+  // Manager mapping (one-to-many: one canteen, many managers possible in future)
+  canteenManagers     CanteenManager[]
 }
 
+// Maps managers to canteens (many-to-one for now, but allows future multi-canteen)
+model CanteenManager {
+  id                  String          @id @default(uuid())
+  
+  // Manager reference
+  managerId           String
+  manager             Profile         @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  
+  // Canteen reference
+  canteenId           String
+  canteen             Canteen         @relation(fields: [canteenId], references: [id], onDelete: Cascade)
+  
+  // Role in canteen (can support multiple roles in future)
+  role                CanteenRole     @default(OWNER)
+  
+  // Status
+  isActive            Boolean         @default(true)
+  
+  @@unique([managerId, canteenId])
+  @@index([managerId])
+  @@index([canteenId])
+}
+
+enum CanteenRole {
+  OWNER
+  STAFF
+}
+
+// Menu item for a canteen
 model MenuItem {
-  id           String      @id @default(uuid())
-  name         String
-  price        Float
-  image        String
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
-  restaurantId String
-  orderItems   OrderItem[]   // 👈 ADD THIS LINE
+  id                  String          @id @default(uuid())
+  name                String
+  description         String?
+  price               Float
+  image               String?
+  prepTime            Int?            // Minutes
+  isAvailable         Boolean         @default(true)
+  
+  // Support both Canteen (new) and Restaurant (legacy)
+  canteen             Canteen?        @relation(fields: [canteenId], references: [id], onDelete: Cascade)
+  canteenId           String?
+  
+  restaurant          Restaurant?     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId        String?
+  
+  orderItems          OrderItem[]
+  
+  @@index([canteenId])
+  @@index([restaurantId])
 }
 
-
+// Order placed with a canteen
 model Order {
-  id          String      @id @default(uuid())
-  student     Profile     @relation(fields: [studentId], references: [id])
-  studentId   String
-  totalAmount Float
-  status      OrderStatus @default(PENDING)
-  createdAt   DateTime    @default(now())
-  items       OrderItem[]
+  id                  String          @id @default(uuid())
+  orderNumber         String?         // Token number: CAN-100, CAN-101
+  
+  student             Profile         @relation(fields: [studentId], references: [id])
+  studentId           String
+  
+  canteen             Canteen?        @relation(fields: [canteenId], references: [id])
+  canteenId           String?
+  
+  totalAmount         Float
+  status              OrderStatus     @default(PENDING)
+  
+  items               OrderItem[]
+  completedAt         DateTime?
+  
+  @@index([canteenId])
+  @@index([studentId])
 }
 
+// Order line item
 model OrderItem {
-  id          String   @id @default(uuid())
-  order       Order    @relation(fields: [orderId], references: [id])
-  orderId     String
-  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
-  menuItemId  String
-  quantity    Int
+  id                  String          @id @default(uuid())
+  order               Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId             String
+  menuItem            MenuItem        @relation(fields: [menuItemId], references: [id])
+  menuItemId          String
+  quantity            Int
+  priceAtTime         Float           // Historical price
+  
+  @@index([orderId])
 }
 
 enum OrderStatus {
   PENDING
   PREPARING
   READY
-  COMPLETED
+  COLLECTED
+  CANCELLED
 }
+
+// Legacy: Restaurant for student browsing (may deprecate)
+model Restaurant {
+  id                  String          @id @default(uuid())
+  name                String
+  image               String
+  rating              Float           @default(4.0)
+  deliveryTime        String
+  isVeg               Boolean         @default(false)
+  menuItems           MenuItem[]
+}
+

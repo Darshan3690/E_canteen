@@ -1,6 +1,7 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import LandingPage from "./LandingPage";
+import { getUserRole } from "@/lib/auth";
 
 export default async function HomePage() {
   const { userId } = await auth();
@@ -10,10 +11,8 @@ export default async function HomePage() {
     return <LandingPage />;
   }
 
-  // Logged in → get role
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const role = user.publicMetadata.role as string | undefined;
+  // Logged in → get role from database profile
+  const role = await getUserRole();
 
   // No role assigned → redirect to role selection
   if (!role) {
@@ -26,5 +25,5 @@ export default async function HomePage() {
   }
 
   // Default: student
-  redirect("/student");
+  redirect("/canteens");
 }

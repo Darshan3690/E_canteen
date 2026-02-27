@@ -1,63 +1,113 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  --animate-fade-up: fade-up 0.5s ease-out forwards;
+  --animate-scale-in: scale-in 0.3s ease-out forwards;
+  
+  @keyframes fade-up {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes scale-in {
+    0% { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
+  }
 }
 
+/* Light mode (default) - Warm, premium SaaS look */
+:root {
+  --background: #FAFAF9; /* Warm neutral Stone 50 */
+  --foreground: #1C1917; /* Warm dark gray Stone 900 */
+  
+  --primary: #F97316; /* Deep Orange 500 */
+  --primary-foreground: #FFFFFF;
+  
+  --secondary: #E7E5E4; /* Stone 200 */
+  --secondary-foreground: #292524; /* Stone 800 */
+  
+  --accent: #FFEDD5; /* Orange 100 */
+  --accent-foreground: #C2410C; /* Orange 700 */
+
+  --muted: #F5F5F4; /* Stone 100 */
+  --muted-foreground: #78716C; /* Stone 500 */
+  
+  --card: #FFFFFF;
+  --card-foreground: #1C1917;
+  
+  --border: #E7E5E4; /* Stone 200 */
+  --input: #E7E5E4;
+}
+
+/* Dark mode - Deep warm slate */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0C0A09; /* Stone 950 */
+    --foreground: #FAFAF9; /* Stone 50 */
+    
+    --primary: #EA580C; /* Orange 600 */
+    --primary-foreground: #FFFFFF;
+    
+    --secondary: #292524; /* Stone 800 */
+    --secondary-foreground: #FAFAF9;
+    
+    --accent: #431407; /* Orange 950 */
+    --accent-foreground: #FB923C; /* Orange 400 */
+    
+    --muted: #1C1917; /* Stone 900 */
+    --muted-foreground: #A8A29E; /* Stone 400 */
+    
+    --card: #1C1917;
+    --card-foreground: #FAFAF9;
+    
+    --border: #292524;
+    --input: #292524;
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-@keyframes slowZoom {
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(1.08);
-  }
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-.animate-slowZoom {
-  animation: slowZoom 10s ease-in-out infinite alternate;
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-@keyframes slowZoom {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.05); }
-}
-
-.animate-slowZoom {
-  animation: slowZoom 12s ease-in-out infinite alternate;
-}
-@keyframes slowZoom {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.05); }
-}
-
-.animate-slowZoom {
-  animation: slowZoom 12s ease-in-out infinite alternate;
+.dark .glass-panel {
+  background: rgba(12, 10, 9, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;
+    display: none;
 }
 .scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }

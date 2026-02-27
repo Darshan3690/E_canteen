@@ -25,6 +25,17 @@ NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
 # ================================
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6...
+
+# ================================
+# Supabase Storage (Server-Side Uploads)
+# ================================
+# Used by POST /api/manager/upload (recommended to use service role on server)
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+# Buckets expected in Supabase Storage:
+# - logos (PUBLIC)
+# - covers (PUBLIC)
+# - menu  (optional, if you plan to upload menu images)
 ```
 
 ⚠️ Never commit `.env.local` to GitHub.

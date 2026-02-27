@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, SignOutButton, useUser } from "@clerk/nextjs";
 import gsap from "gsap";
 import Link from "next/link";
 
@@ -13,13 +13,14 @@ interface ManagerHeaderProps {
 export default function ManagerHeader({ activeTab, onTabChange }: ManagerHeaderProps) {
   const headerRef = useRef<HTMLElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user } = useUser();
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
     { id: "orders", label: "Orders", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
     { id: "menu", label: "Menu", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
     { id: "inventory", label: "Inventory", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
-  ];
+  ];   
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -81,6 +82,20 @@ export default function ManagerHeader({ activeTab, onTabChange }: ManagerHeaderP
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
+            {/* User name + email – desktop only */}
+            {user && (
+              <div className="hidden md:flex flex-col items-end">
+                <span className="text-sm font-semibold text-slate-800 leading-tight">
+                  {user.firstName
+                    ? `${user.firstName}${user.lastName ? " " + user.lastName : ""}`
+                    : (user.username ?? "Account")}
+                </span>
+                <span className="text-xs text-slate-400 leading-tight">
+                  {user.primaryEmailAddress?.emailAddress}
+                </span>
+              </div>
+            )}
+
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -102,7 +117,17 @@ export default function ManagerHeader({ activeTab, onTabChange }: ManagerHeaderP
               </svg>
             </button>
 
+            <SignOutButton redirectUrl="/landing">
+              <button className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Sign out
+              </button>
+            </SignOutButton>
+
             <UserButton
+              afterSignOutUrl="/landing"
               appearance={{
                 elements: {
                   avatarBox: "w-8 h-8 sm:w-9 sm:h-9",
@@ -141,6 +166,17 @@ export default function ManagerHeader({ activeTab, onTabChange }: ManagerHeaderP
                   {item.label}
                 </button>
               ))}
+            </div>
+
+            <div className="mt-3 px-4">
+              <SignOutButton redirectUrl="/landing">
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Sign out
+                </button>
+              </SignOutButton>
             </div>
           </nav>
         )}

@@ -1,10 +1,10 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
 
 export async function getUserRole() {
   const { userId } = await auth();
   if (!userId) return null;
 
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  return user.publicMetadata.role as string | undefined;
+  const profile = await prisma.profile.findUnique({ where: { id: userId } });
+  return profile?.role ?? null;
 }

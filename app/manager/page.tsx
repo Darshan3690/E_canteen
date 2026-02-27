@@ -1,29 +1,26 @@
 import { redirect } from "next/navigation";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import ManagerDashboard from "./ManagerDashboard";
+import { auth } from "@clerk/nextjs/server";
+import { checkManagerRole } from "@/lib/auth-guards";
+
+export const metadata = {
+  title: "Manager Dashboard - E-Canteen",
+  description: "Manage your canteen, orders, and menu",
+};
 
 export default async function ManagerPage() {
   const { userId } = await auth();
 
-  // Not logged in - redirect to login
   if (!userId) {
     redirect("/login");
   }
 
-  // Get user role from Clerk
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const role = user.publicMetadata.role as string | undefined;
+  // Check manager role
+  const roleCheck = await checkManagerRole();
 
-  // No role assigned - redirect to select role
-  if (!role) {
+  if (!roleCheck.role) {
     redirect("/select-role");
   }
 
-  // Has role but not manager - redirect to menu (student page)
-  if (role !== "manager") {
-    redirect("/menu");
-  }
-
-  return <ManagerDashboard />;
+  // If everything is fine, redirect to the dashboard overview
+  redirect("/manager/dashboard");
 }
