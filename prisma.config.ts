@@ -1,5 +1,8 @@
-// Configuration is handled via prisma/schema.prisma
-// This file is kept for reference only
-// Prisma configuration is auto-managed by prisma CLI
+import 'dotenv/config'
+import { defineConfig, env } from '@prisma/config'
 
-export default {};
+export default defineConfig({
+	datasource: {
+		url: env('DATABASE_URL'),
+	},
+})

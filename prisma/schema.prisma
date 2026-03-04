@@ -1,11 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library" // Ensure Prisma uses the standard library engine
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // User profile (students and managers)
@@ -133,7 +132,7 @@ model Order {
   
   @@index([canteenId])
   @@index([studentId])
-}
+} 
 
 // Order line item
 model OrderItem {
