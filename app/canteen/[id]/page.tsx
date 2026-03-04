@@ -49,3 +49,4 @@ export default async function CanteenMenuPage({ params }: Props) {
 
   return <CanteenMenuClient canteen={safeCanteen} />;
 }
+// 2
