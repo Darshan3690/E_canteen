@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "E-Canteen",
   description: "College Canteen Management System",
+  viewport: "width=device-width, initial-scale=1",
 };
 
 export default function RootLayout({
@@ -25,9 +26,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Providers>{children}</Providers>
-      </body>
+     <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+  <Providers>
+    <div className="min-h-screen w-full overflow-x-hidden">
+      {children}
+    </div>
+  </Providers>
+</body>
     </html>
   );
 }

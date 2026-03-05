@@ -272,8 +272,8 @@ function Header() {
           CampusEats
         </Link>
         
-        <div className="hidden md:flex items-center gap-8">
-           <nav className="flex items-center gap-8 mr-4">
+        <div className="flex items-center gap-8">
+           <nav className="hidden md:flex items-center gap-8 mr-4">
               <Link href="/canteens" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Canteens</Link>
               <Link href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">How it works</Link>
            </nav>
