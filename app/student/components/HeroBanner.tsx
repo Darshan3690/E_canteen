@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { UserButton } from "@clerk/nextjs";
 import LocationModal from "./LocationModal";
 import SearchModal from "./SearchModal";
 
@@ -42,8 +43,15 @@ export default function HeroBanner() {
                     </div>
 
                     {/* 👤 Profile */}
-                    <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-medium text-sm shadow-lg">
-                        D
+                    <div className="rounded-full bg-black/35 p-1 backdrop-blur-sm">
+                        <UserButton
+                            afterSignOutUrl="/landing"
+                            appearance={{
+                                elements: {
+                                    avatarBox: "w-8 h-8",
+                                },
+                            }}
+                        />
                     </div>
                 </div>
 

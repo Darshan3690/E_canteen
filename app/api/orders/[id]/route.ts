@@ -3,6 +3,33 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserRole } from "@/lib/auth";
 
+async function createNotificationSafe(
+  db: unknown,
+  data: {
+    studentId: string;
+    orderId: string;
+    type: string;
+    title: string;
+    message: string;
+  }
+) {
+  const notificationDelegate = (
+    db as {
+      notification?: {
+        create: (args: { data: typeof data }) => Promise<unknown>;
+      };
+    }
+  ).notification;
+
+  if (!notificationDelegate) return;
+
+  try {
+    await notificationDelegate.create({ data });
+  } catch (err) {
+    console.warn("Notification write skipped:", err);
+  }
+}
+
 const VALID_TRANSITIONS: Record<string, string> = {
   PENDING: "PREPARING",
   PREPARING: "READY",
@@ -51,6 +78,36 @@ export async function PATCH(
         ...(status === "COLLECTED" ? { completedAt: new Date() } : {}),
       },
     });
+
+    const statusMessages: Record<string, { title: string; message: string }> = {
+      PREPARING: {
+        title: "Order is being prepared",
+        message: `Your order ${updated.orderNumber ?? updated.id.slice(0, 8)} is now being prepared.`,
+      },
+      READY: {
+        title: "Order ready for pickup",
+        message: `Your order ${updated.orderNumber ?? updated.id.slice(0, 8)} is ready. Please collect it now.`,
+      },
+      COLLECTED: {
+        title: "Order collected",
+        message: `Your order ${updated.orderNumber ?? updated.id.slice(0, 8)} has been marked as collected.`,
+      },
+      CANCELLED: {
+        title: "Order cancelled",
+        message: `Your order ${updated.orderNumber ?? updated.id.slice(0, 8)} was cancelled.`,
+      },
+    };
+
+    const statusNotice = statusMessages[status];
+    if (statusNotice) {
+      await createNotificationSafe(prisma, {
+        studentId: updated.studentId,
+        orderId: updated.id,
+        type: "ORDER_STATUS",
+        title: statusNotice.title,
+        message: statusNotice.message,
+      });
+    }
 
     return NextResponse.json(updated);
   } catch (err) {
