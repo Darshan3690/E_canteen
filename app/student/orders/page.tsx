@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 interface OrderItem {
@@ -20,6 +20,15 @@ interface Order {
   items: OrderItem[];
 }
 
+interface StudentNotification {
+  id: string;
+  orderId: string | null;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 const statusColors: Record<string, string> = {
   PENDING: "bg-slate-700 text-slate-200",
   PREPARING: "bg-amber-900/40 text-amber-300",
@@ -30,17 +39,82 @@ const statusColors: Record<string, string> = {
 
 export default function StudentOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [notifications, setNotifications] = useState<StudentNotification[]>([]);
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const initializedRef = useRef(false);
+  const seenNotificationIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    fetch("/api/orders")
-      .then((r) => r.json())
-      .then((data) => {
-        setOrders(Array.isArray(data) ? data : []);
+    const fetchData = async () => {
+      try {
+        const [ordersRes, notificationsRes] = await Promise.all([
+          fetch("/api/orders"),
+          fetch("/api/notifications"),
+        ]);
+
+        const ordersData = await ordersRes.json();
+        const notificationsData = await notificationsRes.json();
+
+        const nextOrders = Array.isArray(ordersData) ? ordersData : [];
+        const nextNotifications = Array.isArray(notificationsData) ? notificationsData : [];
+
+        setOrders(nextOrders);
+        setNotifications(nextNotifications);
+
+        const unread = nextNotifications.filter((n) => !n.isRead);
+        if (!initializedRef.current) {
+          unread.forEach((n) => seenNotificationIdsRef.current.add(n.id));
+          initializedRef.current = true;
+        } else {
+          const latestNewUnread = unread.find((n) => !seenNotificationIdsRef.current.has(n.id));
+          if (latestNewUnread) {
+            seenNotificationIdsRef.current.add(latestNewUnread.id);
+            setToast({ title: latestNewUnread.title, message: latestNewUnread.message });
+            if (typeof window !== "undefined" && "Notification" in window) {
+              if (Notification.permission === "granted") {
+                new Notification(latestNewUnread.title, { body: latestNewUnread.message });
+              }
+            }
+          }
+        }
+      } catch {
+        // no-op
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    };
+
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+      }
+    }
+
+    fetchData();
+    const interval = setInterval(fetchData, 15_000);
+    return () => clearInterval(interval);
   }, []);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const markAsRead = async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    try {
+      await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+    } catch {
+      // no-op
+    }
+  };
+
+  const markAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      await fetch("/api/notifications/read-all", { method: "PATCH" });
+    } catch {
+      // no-op
+    }
+  };
 
   return (
     <div className="bg-[#0f1116] min-h-screen text-white">
@@ -56,6 +130,72 @@ export default function StudentOrdersPage() {
       </div>
 
       <div className="px-5 py-6">
+        {toast && (
+          <div className="mb-4 rounded-xl border border-green-700/50 bg-green-900/30 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-green-300">{toast.title}</p>
+                <p className="text-sm text-green-100">{toast.message}</p>
+              </div>
+              <button
+                onClick={() => setToast(null)}
+                className="text-xs text-green-200 hover:text-white"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-6 rounded-xl bg-[#1c1f26] p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-100">Notifications</h2>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-xs text-orange-300">
+                {unreadCount} unread
+              </span>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-xs text-orange-300 hover:text-orange-200"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+          </div>
+
+          {notifications.length === 0 ? (
+            <p className="text-sm text-gray-500">No notifications yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {notifications.slice(0, 5).map((n) => (
+                <div
+                  key={n.id}
+                  className={`rounded-lg p-3 ${
+                    n.isRead ? "bg-[#222631]" : "bg-orange-900/20 border border-orange-700/40"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-100">{n.title}</p>
+                      <p className="text-xs text-gray-300 mt-0.5">{n.message}</p>
+                    </div>
+                    {!n.isRead && (
+                      <button
+                        onClick={() => markAsRead(n.id)}
+                        className="text-xs text-orange-300 hover:text-orange-200"
+                      >
+                        Read
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <div className="text-center py-24 text-gray-500">
             <div className="text-4xl mb-3 animate-pulse">⏳</div>

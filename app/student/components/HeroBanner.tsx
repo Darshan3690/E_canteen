@@ -99,6 +99,7 @@
 "use client";
 
 import { useState } from "react";
+import { UserButton } from "@clerk/nextjs";
 import LocationModal from "./LocationModal";
 import SearchModal from "./SearchModal";
 import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
@@ -137,6 +138,7 @@ export default function HeroBanner() {
                         <p className="text-xs text-gray-300">India</p>
                     </div>
 
+<<<<<<< HEAD
                     {/* 👤 Clerk Account */}
                     <div className="flex items-center">
                         
@@ -161,6 +163,18 @@ export default function HeroBanner() {
                             />
                         </SignedIn>
 
+=======
+                    {/* 👤 Profile */}
+                    <div className="rounded-full bg-black/35 p-1 backdrop-blur-sm">
+                        <UserButton
+                            afterSignOutUrl="/landing"
+                            appearance={{
+                                elements: {
+                                    avatarBox: "w-8 h-8",
+                                },
+                            }}
+                        />
+>>>>>>> darshan-bhanderi
                     </div>
                 </div>
 

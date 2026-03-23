@@ -3,6 +3,33 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserRole } from "@/lib/auth";
 
+async function createNotificationSafe(
+  tx: unknown,
+  data: {
+    studentId: string;
+    orderId: string;
+    type: string;
+    title: string;
+    message: string;
+  }
+) {
+  const notificationDelegate = (
+    tx as {
+      notification?: {
+        create: (args: { data: typeof data }) => Promise<unknown>;
+      };
+    }
+  ).notification;
+
+  if (!notificationDelegate) return;
+
+  try {
+    await notificationDelegate.create({ data });
+  } catch (err) {
+    console.warn("Notification write skipped:", err);
+  }
+}
+
 /** POST /api/orders — student places an order */
 export async function POST(req: Request) {
   try {
@@ -69,6 +96,14 @@ export async function POST(req: Request) {
           },
         },
         include: { items: { include: { menuItem: true } } },
+      });
+
+      await createNotificationSafe(tx, {
+        studentId: userId,
+        orderId: newOrder.id,
+        type: "ORDER_PLACED",
+        title: "Order placed successfully",
+        message: `Your order ${newOrder.orderNumber ?? newOrder.id.slice(0, 8)} has been received.`,
       });
 
       await tx.canteen.update({
